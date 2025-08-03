@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📸 NAS 사진 갤러리</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📸</text></svg>">
+    <style>
+        /* 현대적인 CSS 스타일링 */
+        :root {
+            --primary-color: #007cba;
+            --secondary-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+            --border-color: #dee2e6;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+            --shadow-hover: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+        }
+        
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .header p {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+        
+        .upload-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+        }
+        
+        .upload-zone {
+            border: 3px dashed var(--primary-color);
+            border-radius: 10px;
+            padding: 50px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--secondary-color);
+            background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(0, 124, 186, 0.1) 100%);
+            transform: scale(1.02);
+        }
+        
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+        
+        .upload-zone-content {
+            z-index: 1;
+            position: relative;
+        }
+        
+        .upload-zone h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+        }
+        
+        .upload-zone p {
+            margin-bottom: 20px;
+            color: #6c757d;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-warning {
+            background: var(--warning-color);
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .folder-tabs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            overflow-x: auto;
+            padding: 5px 0;
+        }
+        
+        .folder-tab {
+            padding: 8px 16px;
+            background: var(--light-bg);
+            border: 2px solid transparent;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .folder-tab:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+        
+        .folder-tab.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .upload-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .upload-controls select {
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background: white;
+            font-size: 0.9rem;
+        }
+        
+        .upload-controls input[type="text"] {
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-width: 120px;
+        }
+        
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .photo-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .photo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .photo-card img {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .photo-card:hover img {
+            transform: scale(1.05);
+        }
+        
+        .photo-info {
+            padding: 20px;
+        }
+        
+        .photo-name {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #212529;
+            font-size: 0.95rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .photo-meta {
+            color: #6c757d;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            margin-bottom: 15px;
+        }
+        
+        .photo-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .photo-actions .btn {
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            flex: 1;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            cursor: pointer;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 95vw;
+            max-height: 95vh;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px 20px;
+            color: #6c757d;
+        }
+        
+        .loading::before {
+            content: "📸";
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 15px;
+            animation: bounce 1s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #6c757d;
+            background: white;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+        }
+        
+        .empty-state::before {
+            content: "🖼️";
+            font-size: 4rem;
+            display: block;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            background: var(--secondary-color);
+        }
+        
+        .toast.error {
+            background: var(--danger-color);
+        }
+        
+        .stats {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-item {
+            padding: 10px;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .upload-zone {
+                padding: 30px 15px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+            }
+            
+            .folder-tabs {
+                justify-content: center;
+            }
+            
+            .upload-controls {
+                justify-content: center;
+            }
+            
+            .photo-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 15px;
+            }
+            
+            .modal-content {
+                max-width: 98vw;
+                max-height: 90vh;
+            }
+        }
+        
+        /* 다크모드 준비 */
+        @media (prefers-color-scheme: dark) {
+            /* 다크모드 스타일은 나중에 추가 가능 */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>📸 NAS 사진 갤러리</h1>
+            <p>드래그 앤 드롭으로 사진을 업로드하고 체계적으로 관리하세요</p>
+        </div>
+
+        <!-- 통계 정보 -->
+        <div class="stats" id="statsSection">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number" id="totalPhotos">0</div>
+                    <div class="stat-label">총 사진</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="totalFolders">0</div>
+                    <div class="stat-label">폴더 수</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="totalSize">0 MB</div>
+                    <div class="stat-label">총 크기</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 업로드 섹션 -->
+        <div class="upload-section">
+            <div class="upload-zone" id="uploadZone">
+                <input type="file" id="fileInput" multiple accept="image/*">
+                <div class="upload-zone-content">
+                    <h3>📤 사진 업로드</h3>
+                    <p>여기로 사진을 드래그하거나 클릭해서 선택하세요</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        📁 파일 선택
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 컨트롤 -->
+        <div class="controls">
+            <div class="folder-tabs" id="folderTabs"></div>
+            
+            <div class="upload-controls">
+                <button class="btn btn-success" onclick="loadData()">🔄 새로고침</button>
+                
+                <select id="uploadFolder">
+                    <option value="temp">📁 temp</option>
+                </select>
+                
+                <input type="text" id="newFolderName" placeholder="새 폴더명" maxlength="50">
+                <button class="btn btn-warning" onclick="createFolder()">📁 폴더 생성</button>
+                
+                <button class="btn btn-danger" onclick="deleteSelected()" id="deleteBtn" style="display: none;">
+                    🗑️ 선택 삭제
+                </button>
+            </div>
+        </div>
+
+        <!-- 사진 그리드 -->
+        <div id="photoContainer">
+            <div class="loading" id="loading">로딩 중...</div>
+        </div>
+
+        <!-- 이미지 모달 -->
+        <div class="modal" id="imageModal">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <div class="modal-content">
+                <img id="modalImage" src="" alt="">
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 코드는 별도 파일로 분리하는 것을 권장하지만, 
+         여기서는 간단히 인라인으로 작성 -->
+    <script>
+        // 전역 변수
+        let currentFolder = '';
+        let photos = [];
+        let folders = [];
+        let selectedPhotos = new Set();
+        
+        // 초기 로드
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            setupEventListeners();
+        });
+        
+        // 이벤트 리스너 설정
+        function setupEventListeners() {
+            const uploadZone = document.getElementById('uploadZone');
+            const fileInput = document.getElementById('fileInput');
+            
+            // 드래그 앤 드롭
+            uploadZone.addEventListener('dragover', handleDragOver);
+            uploadZone.addEventListener('dragleave', handleDragLeave);
+            uploadZone.addEventListener('drop', handleDrop);
+            uploadZone.addEventListener('click', () => fileInput.click());
+            
+            // 파일 선택
+            fileInput.addEventListener('change', (e) => {
+                uploadFiles(e.target.files);
+            });
+            
+            // 모달 클릭 시 닫기
+            document.getElementById('imageModal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    closeModal();
+                }
+            });
+            
+            // ESC 키로 모달 닫기
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        }
+        
+        // 드래그 오버 처리
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        }
+        
+        // 드래그 리브 처리
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('dragover');
+        }
+        
+        // 드롭 처리
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            uploadFiles(files);
+        }
+        
+        // 데이터 로드 (폴더 + 사진)
+        async function loadData() {
+            showLoading();
+            try {
+                await Promise.all([
+                    loadFolders(),
+                    loadPhotos()
+                ]);
+                updateStats();
+            } catch (error) {
+                showToast('데이터 로드 중 오류가 발생했습니다.', 'error');
+                console.error('데이터 로드 오류:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 폴더 목록 로드
+        async function loadFolders() {
+            try {
+                const response = await fetch('/api/folders');
+                if (!response.ok) throw new Error('폴더 로드 실패');
+                
+                folders = await response.json();
+                updateFolderTabs();
+                updateUploadFolderSelect();
+            } catch (error) {
+                console.error('폴더 로드 오류:', error);
+                throw error;
+            }
+        }
+        
+        // 사진 목록 로드
+        async function loadPhotos() {
+            try {
+                // 경로 인코딩을 추가하고, 루트일 경우 경로를 비워줍니다.
+                const url = currentFolder 
+                    ? `/api/photos/${encodeURIComponent(currentFolder)}` 
+                    : '/api/photos';
+                    
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('사진 로드 실패');
+                
+                photos = await response.json();
+                updatePhotoGrid();
+                selectedPhotos.clear();
+                updateDeleteButton();
+            } catch (error) {
+                console.error('사진 로드 오류:', error);
+                throw error;
+            }
+        }
+
+        
+        // 폴더 탭 업데이트
+        function updateFolderTabs() {
+            const tabsContainer = document.getElementById('folderTabs');
+            
+            let tabsHtml = `
+                <button class="folder-tab ${currentFolder === '' ? 'active' : ''}" 
+                        onclick="selectFolder('')">
+                    📁 전체 (${getTotalPhotoCount()})
+                </button>
+            `;
+            
+            folders.forEach(folder => {
+                const isActive = currentFolder === folder.name;
+                tabsHtml += `
+                    <button class="folder-tab ${isActive ? 'active' : ''}" 
+                            onclick="selectFolder('${escapeHtml(folder.name)}')" 
+                            title="생성: ${new Date(folder.created).toLocaleDateString()}">
+                        📁 ${escapeHtml(folder.name)}
+                    </button>
+                `;
+            });
+            
+            tabsContainer.innerHTML = tabsHtml;
+        }
+        
+        // 업로드 폴더 선택 업데이트
+        function updateUploadFolderSelect() {
+            const select = document.getElementById('uploadFolder');
+            const currentValue = select.value;
+            
+            let optionsHtml = '<option value="temp">📁 temp</option>';
+            folders.forEach(folder => {
+                optionsHtml += `
+                    <option value="${escapeHtml(folder.name)}">
+                        📁 ${escapeHtml(folder.name)}
+                    </option>
+                `;
+            });
+            
+            select.innerHTML = optionsHtml;
+            
+            // 이전 선택값 복원
+            if (currentValue && [...select.options].some(opt => opt.value === currentValue)) {
+                select.value = currentValue;
+            }
+        }
+        
+        // 사진 그리드 업데이트
+        function updatePhotoGrid() {
+            const container = document.getElementById('photoContainer');
+            
+            if (photos.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>사진이 없습니다</h3>
+                        <p>위의 업로드 영역으로 사진을 끌어다 놓으세요</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let gridHtml = '<div class="photo-grid">';
+            
+            photos.forEach(photo => {
+                const isSelected = selectedPhotos.has(photo.path);
+                const fileSize = formatFileSize(photo.size);
+                const uploadDate = new Date(photo.modified).toLocaleDateString('ko-KR');
+                
+                // 안전한 확장자 처리
+                const extension = photo.extension ? photo.extension.toUpperCase() : 'IMAGE';
+                
+                gridHtml += `
+                    <div class="photo-card ${isSelected ? 'selected' : ''}" data-path="${escapeHtml(photo.path)}">
+                        <img src="/photos/${encodeURIComponent(photo.path)}" 
+                            alt="${escapeHtml(photo.name)}"
+                            onclick="openModal('/photos/${encodeURIComponent(photo.path)}', '${escapeHtml(photo.name)}')"
+                            loading="lazy">
+                        <div class="photo-info">
+                            <div class="photo-name" title="${escapeHtml(photo.name)}">
+                                ${escapeHtml(photo.name)}
+                            </div>
+                            <div class="photo-meta">
+                                📏 ${fileSize}<br>
+                                📅 ${uploadDate}<br>
+                                🏷️ ${extension}
+                            </div>
+                            <div class="photo-actions">
+                                <button class="btn ${isSelected ? 'btn-warning' : 'btn-primary'}" 
+                                        onclick="toggleSelection('${escapeHtml(photo.path)}')"
+                                        style="font-size: 0.7rem;">
+                                    ${isSelected ? '✓ 선택됨' : '☐ 선택'}
+                                </button>
+                                <button class="btn btn-danger" 
+                                        onclick="deletePhoto('${escapeHtml(photo.path)}')"
+                                        style="font-size: 0.7rem;">
+                                    🗑️ 삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            gridHtml += '</div>';
+            container.innerHTML = gridHtml;
+        }
+
+        
+        // 통계 정보 업데이트
+        function updateStats() {
+            const totalPhotos = getTotalPhotoCount();
+            const totalFolders = folders.length;
+            const totalSize = photos.reduce((sum, photo) => sum + photo.size, 0);
+            
+            document.getElementById('totalPhotos').textContent = totalPhotos;
+            document.getElementById('totalFolders').textContent = totalFolders;
+            document.getElementById('totalSize').textContent = formatFileSize(totalSize);
+        }
+        
+        // 전체 사진 수 계산 (비동기로 각 폴더의 사진 수를 합산)
+        function getTotalPhotoCount() {
+            // 현재 폴더의 사진 수만 반환 (전체 계산은 복잡하므로 일단 간단히)
+            return photos.length;
+        }
+        
+        // 폴더 선택
+        function selectFolder(folder) {
+            currentFolder = folder;
+            loadPhotos().then(() => {
+                updateFolderTabs();
+                updateStats();
+            });
+        }
+        
+        // 사진 선택/해제 토글
+        function toggleSelection(photoPath) {
+            if (selectedPhotos.has(photoPath)) {
+                selectedPhotos.delete(photoPath);
+            } else {
+                selectedPhotos.add(photoPath);
+            }
+            updatePhotoGrid();
+            updateDeleteButton();
+        }
+        
+        // 삭제 버튼 업데이트
+        function updateDeleteButton() {
+            const deleteBtn = document.getElementById('deleteBtn');
+            if (selectedPhotos.size > 0) {
+                deleteBtn.style.display = 'inline-block';
+                deleteBtn.textContent = `🗑️ 선택 삭제 (${selectedPhotos.size})`;
+            } else {
+                deleteBtn.style.display = 'none';
+            }
+        }
+        
+        // 파일 업로드 함수 (수정된 완전한 버전)
+        async function uploadFiles(files) {
+            try {
+                if (!files || files.length === 0) {
+                    console.log('업로드할 파일이 없습니다.');
+                    return;
+                }
+                
+                const formData = new FormData();
+                const folder = document.getElementById('uploadFolder').value;
+                
+                // 파일 검증
+                const validFiles = Array.from(files).filter(file => {
+                    if (!file.type.startsWith('image/')) {
+                        showToast(`${file.name}는 이미지 파일이 아닙니다.`, 'error');
+                        return false;
+                    }
+                    if (file.size > 50 * 1024 * 1024) { // 50MB
+                        showToast(`${file.name}은 파일 크기가 너무 큽니다. (최대 50MB)`, 'error');
+                        return false;
+                    }
+                    
+                    // 한국어 파일명 로그 (디버깅용)
+                    console.log(`업로드 파일: ${file.name} (${file.size} bytes)`);
+                    return true;
+                });
+                
+                if (validFiles.length === 0) {
+                    console.log('유효한 파일이 없습니다.');
+                    return;
+                }
+                
+                formData.append('folder', folder);
+                validFiles.forEach(file => {
+                    formData.append('photos', file);
+                });
+                
+                // 업로드 중 UI 업데이트
+                const uploadZone = document.getElementById('uploadZone');
+                if (!uploadZone) {
+                    console.error('uploadZone 엘리먼트를 찾을 수 없습니다.');
+                    return;
+                }
+                
+                const originalContent = uploadZone.innerHTML;
+                uploadZone.innerHTML = `
+                    <div class="upload-zone-content">
+                        <h3>📤 업로드 중...</h3>
+                        <p>${validFiles.length}개 파일을 업로드하고 있습니다</p>
+                        <div style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; margin-top: 15px;">
+                            <div style="width: 0%; height: 100%; background: var(--primary-color); border-radius: 2px; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+                
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`✅ ${result.message}`, 'success');
+                    console.log('업로드 성공:', result.files);
+                    
+                    // 업로드된 폴더가 현재 선택된 폴더와 같으면 새로고침
+                    if (folder === currentFolder || (currentFolder === '' && folder === 'temp')) {
+                        await loadPhotos();
+                    }
+                    
+                    // 새 폴더가 생성되었을 수 있으므로 폴더 목록도 새로고침
+                    await loadFolders();
+                    updateStats();
+                } else {
+                    showToast(`❌ 업로드 실패: ${result.error}`, 'error');
+                    console.error('업로드 실패:', result);
+                }
+                
+            } catch (error) {
+                console.error('업로드 오류:', error);
+                showToast(`❌ 업로드 오류: ${error.message}`, 'error');
+            } finally {
+                // 업로드 영역 복원
+                const uploadZone = document.getElementById('uploadZone');
+                if (uploadZone) {
+                    uploadZone.innerHTML = `
+                        <input type="file" id="fileInput" multiple accept="image/*">
+                        <div class="upload-zone-content">
+                            <h3>📤 사진 업로드</h3>
+                            <p>여기로 사진을 드래그하거나 클릭해서 선택하세요</p>
+                            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                📁 파일 선택
+                            </button>
+                        </div>
+                    `;
+                    
+                    // 이벤트 리스너 재설정
+                    setupEventListeners();
+                }
+            }
+        }
+
+        
+        // 개별 사진 삭제
+        async function deletePhoto(photoPath) {
+        if (!confirm('정말로 이 사진을 삭제하시겠습니까?\n\n삭제된 파일은 복구할 수 없습니다.')) return;
+        
+        try {
+            const response = await fetch(`/api/photos?path=${encodeURIComponent(photoPath)}`, {
+            method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+            showToast('✅ 사진이 삭제되었습니다.', 'success');
+            selectedPhotos.delete(photoPath);
+            await loadPhotos();
+            updateStats();
+            } else {
+            showToast(`❌ 삭제 실패: ${result.error}`, 'error');
+            }
+            
+        } catch (error) {
+            console.error('삭제 오류:', error);
+            showToast(`❌ 삭제 오류: ${error.message}`, 'error');
+        }
+        }
+
+        
+        // 선택된 사진들 일괄 삭제
+        async function deleteSelected() {
+            if (selectedPhotos.size === 0) {
+                showToast('삭제할 사진을 선택해주세요.', 'error');
+                return;
+            }
+            
+            if (!confirm(`선택한 ${selectedPhotos.size}개의 사진을 삭제하시겠습니까?\n\n삭제된 파일은 복구할 수 없습니다.`)) return;
+            
+            const deletePromises = Array.from(selectedPhotos).map(async (photoPath) => {
+                try {
+                const response = await fetch(`/api/photos?path=${encodeURIComponent(photoPath)}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                return { path: photoPath, success: result.success, error: result.error };
+                } catch (error) {
+                return { path: photoPath, success: false, error: error.message };
+                }
+            });
+            
+            try {
+                const results = await Promise.all(deletePromises);
+                const successful = results.filter(r => r.success).length;
+                const failed = results.filter(r => !r.success).length;
+                
+                if (successful > 0) {
+                    showToast(`✅ ${successful}개 사진이 삭제되었습니다.`, 'success');
+                }
+                
+                if (failed > 0) {
+                    showToast(`❌ ${failed}개 사진 삭제에 실패했습니다.`, 'error');
+                    console.error('삭제 실패한 파일들:', results.filter(r => !r.success));
+                }
+                
+                selectedPhotos.clear();
+                await loadPhotos();
+                updateStats();
+                
+            } catch (error) {
+                console.error('일괄 삭제 오류:', error);
+                showToast(`❌ 삭제 오류: ${error.message}`, 'error');
+            }
+        }
+        
+        // 새 폴더 생성
+        async function createFolder() {
+            const nameInput = document.getElementById('newFolderName');
+            const folderName = nameInput.value.trim();
+            
+            if (!folderName) {
+                showToast('폴더 이름을 입력해주세요.', 'error');
+                nameInput.focus();
+                return;
+            }
+            
+            // 폴더명 유효성 검사
+            if (!/^[a-zA-Z0-9가-힣_\-\s]+$/.test(folderName)) {
+                showToast('폴더 이름에는 특수문자를 사용할 수 없습니다.', 'error');
+                nameInput.focus();
+                return;
+            }
+            
+            if (folders.some(f => f.name === folderName)) {
+                showToast('이미 존재하는 폴더 이름입니다.', 'error');
+                nameInput.focus();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/folders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: folderName })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`✅ '${folderName}' 폴더가 생성되었습니다.`, 'success');
+                    nameInput.value = '';
+                    await loadFolders();
+                } else {
+                    showToast(`❌ 폴더 생성 실패: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('폴더 생성 오류:', error);
+                showToast(`❌ 폴더 생성 오류: ${error.message}`, 'error');
+            }
+        }
+        
+        // 이미지 모달 열기
+        function openModal(imageSrc, imageName = '') {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            
+            modalImage.src = imageSrc;
+            modalImage.alt = imageName;
+            modal.style.display = 'block';
+            
+            // 브라우저 히스토리에 상태 추가 (뒤로 가기로 모달 닫기 가능)
+            history.pushState({ modal: true }, '', '');
+        }
+        
+        // 이미지 모달 닫기
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = 'none';
+            
+            // 히스토리 상태가 모달 상태라면 뒤로 가기
+            if (history.state && history.state.modal) {
+                history.back();
+            }
+        }
+        
+        // 뒤로 가기 버튼으로 모달 닫기
+        window.addEventListener('popstate', (e) => {
+            const modal = document.getElementById('imageModal');
+            if (modal.style.display === 'block') {
+                modal.style.display = 'none';
+            }
+        });
+        
+        // 토스트 메시지 표시
+        function showToast(message, type = 'success') {
+            // 기존 토스트 제거
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            // 애니메이션을 위한 지연
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            // 3초 후 자동 제거
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        // 로딩 표시
+        function showLoading() {
+            document.getElementById('photoContainer').innerHTML = `
+                <div class="loading">
+                    로딩 중...
+                </div>
+            `;
+        }
+        
+        // 로딩 숨기기
+        function hideLoading() {
+            // updatePhotoGrid()에서 처리됨
+        }
+        
+        // 파일 크기 포맷
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+        
+        // HTML 이스케이프 (XSS 방지)
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 개발자 도구 콘솔에서 사용할 수 있는 디버그 함수들
+        window.debugGallery = {
+            getCurrentFolder: () => currentFolder,
+            getPhotos: () => photos,
+            getFolders: () => folders,
+            getSelected: () => Array.from(selectedPhotos),
+            clearSelected: () => {
+                selectedPhotos.clear();
+                updatePhotoGrid();
+                updateDeleteButton();
+            }
+        };
+        
+        // 앱 정보 로그
+        console.log('📸 NAS Photo Gallery v1.0.0');
+        console.log('🐛 Debug: window.debugGallery 객체를 사용하여 디버깅 가능');
+    </script>
+</body>
+</html>

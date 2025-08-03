@@ -1,0 +1,33 @@
+{
+  "name": "photophp",
+  "version": "1.0.0",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "build": "echo 'No build process needed'",
+    "test": "echo 'Tests not implemented yet'"
+  },
+  "keywords": [
+    "nas",
+    "photo",
+    "gallery",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "description": "",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "fs-extra": "^11.3.0",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.2",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "nodemon": "^3.1.10"
+  }
+}
