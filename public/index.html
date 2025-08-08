@@ -487,6 +487,46 @@
                 max-height: 90vh;
             }
         }
+
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 40px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            user-select: none;
+        }
+        .pagination button, .pagination span {
+            padding: 10px 18px;
+            margin: 0 5px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: var(--light-bg);
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        .pagination button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .pagination .page-info {
+            margin: 0 15px;
+            color: #6c757d;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+
         
         /* 다크모드 준비 */
         @media (prefers-color-scheme: dark) {
@@ -568,6 +608,9 @@
             <div class="loading" id="loading">로딩 중...</div>
         </div>
 
+        <div class="pagination" id="paginationControls">            
+        </div>
+
         <!-- 이미지 모달 -->
         <div class="modal" id="imageModal">
             <button class="modal-close" onclick="closeModal()">✕</button>
@@ -585,6 +628,10 @@
         let photos = [];
         let folders = [];
         let selectedPhotos = new Set();
+
+        let currentPage = 1;
+        let totalPages = 1;
+        const photosPerPage = 12; // 한 페이지에 표시할 사진 수
         
         // 초기 로드
         document.addEventListener('DOMContentLoaded', () => {
@@ -722,22 +769,78 @@
         // 사진 목록 로드
         async function loadPhotos() {
             try {
-                // 경로 인코딩을 추가하고, 루트일 경우 경로를 비워줍니다.
                 const url = currentFolder 
-                    ? `/api/photos/${encodeURIComponent(currentFolder)}` 
-                    : '/api/photos';
+                    ? `/api/photos/${encodeURIComponent(currentFolder)}?page=${currentPage}&limit=${photosPerPage}` 
+                    : `/api/photos?page=${currentPage}&limit=${photosPerPage}`;
                     
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('사진 로드 실패');
                 
-                photos = await response.json();
+                const result = await response.json();
+                photos = result.photos;
+                
+                // 페이지 정보 업데이트
+                if (result.pagination) {
+                    totalPages = result.pagination.totalPages;
+                    currentPage = result.pagination.currentPage;
+                }
+
                 updatePhotoGrid();
+                renderPagination(); // 페이지네이션 UI 렌더링 호출
                 selectedPhotos.clear();
                 updateDeleteButton();
             } catch (error) {
                 console.error('사진 로드 오류:', error);
-                throw error;
+                document.getElementById('photoContainer').innerHTML = '<div class="empty-state"><h3>사진을 불러올 수 없습니다.</h3></div>';
+                document.getElementById('paginationControls').innerHTML = ''; // 오류 시 페이지네이션 숨김
             }
+        }
+
+        // 페이지네이션 UI 렌더링 함수
+        function renderPagination() {
+            const paginationContainer = document.getElementById('paginationControls');
+            if (!paginationContainer) return;
+
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = ''; // 1페이지 이하면 숨김
+                return;
+            }
+
+            paginationContainer.innerHTML = `
+                <button class="btn" onclick="changePage(1)" ${currentPage === 1 ? 'disabled' : ''}>
+                    &laquo; 처음
+                </button>
+                <button class="btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                    &lsaquo; 이전
+                </button>
+                <span class="page-info">${currentPage} / ${totalPages}</span>
+                <button class="btn" onclick="changePage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>
+                    다음 &rsaquo;
+                </button>
+                <button class="btn" onclick="changePage(${totalPages})" ${currentPage >= totalPages ? 'disabled' : ''}>
+                    끝 &raquo;
+                </button>
+            `;
+        }
+
+        // 페이지 변경 함수
+        function changePage(page) {
+            if (page < 1 || page > totalPages || page === currentPage) {
+                return;
+            }
+            currentPage = page;
+            // loadData()를 호출하여 새 페이지의 데이터를 불러옵니다.
+            loadData(); 
+        }
+
+        // 폴더 선택 시 현재 페이지를 1로 초기화
+        function selectFolder(folder) {
+            currentFolder = folder;
+            currentPage = 1; // 폴더 변경 시 첫 페이지로 리셋
+            loadData().then(() => {
+                updateFolderTabs();
+                updateStats();
+            });
         }
 
         

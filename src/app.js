@@ -149,6 +149,50 @@ const validatePath = (inputPath) => {
   return !normalizedPath.includes('..');
 };
 
+// 페이지네이션 로직을 처리하는 헬퍼 함수
+const getPaginatedPhotos = async (directoryPath, page = 1, limit = 12, folder = '') => {
+    if (!await fs.pathExists(directoryPath)) {
+        return { error: '폴더를 찾을 수 없습니다.', status: 404 };
+    }
+
+    const allFiles = await fs.readdir(directoryPath);
+    const photoFiles = [];
+
+    for (const file of allFiles) {
+        const filePath = path.join(directoryPath, file);
+        const stats = await fs.stat(filePath);
+        if (stats.isFile() && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file)) {
+            const extension = path.extname(file).toLowerCase().slice(1) || 'unknown';
+            photoFiles.push({
+                name: file,
+                path: folder ? `${folder}/${file}` : file,
+                size: stats.size,
+                created: stats.birthtime,
+                modified: stats.mtime,
+                extension: extension
+            });
+        }
+    }
+
+    photoFiles.sort((a, b) => new Date(b.modified) - new Date(a.modified)); // 최신순 정렬
+
+    const totalPhotos = photoFiles.length;
+    const totalPages = Math.ceil(totalPhotos / limit);
+    const offset = (page - 1) * limit;
+    const paginatedPhotos = photoFiles.slice(offset, offset + limit);
+
+    return {
+        photos: paginatedPhotos,
+        pagination: {
+            currentPage: Number(page),
+            totalPages: totalPages,
+            totalPhotos: totalPhotos,
+            limit: Number(limit)
+        }
+    };
+};
+
+
 // API 라우트들
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
@@ -185,70 +229,36 @@ app.get('/api/folders', async (req, res) => {
 
 // 사진 목록 조회
 app.get('/api/photos', async (req, res) => {
-  try {
-    const targetDir = PHOTO_DIR;
-    const files = await fs.readdir(targetDir);
-    const photos = [];
-    
-    for (const file of files) {
-        const filePath = path.join(targetDir, file);
-        const stats = await fs.stat(filePath);
-        if (stats.isFile() && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file)) {
-            const extension = path.extname(file).toLowerCase().slice(1) || 'unknown';
-            photos.push({
-                name: file,
-                path: file,
-                size: stats.size,
-                created: stats.birthtime,
-                modified: stats.mtime,
-                extension: extension // 안전한 확장자 처리
-            });
-        }
+    try {
+        const page = req.query.page || 1;
+        const limit = req.query.limit || 12;
+        const result = await getPaginatedPhotos(PHOTO_DIR, page, limit);
+
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        res.json(result);
+    } catch (error) {
+        console.error('루트 사진 목록 조회 오류:', error);
+        res.status(500).json({ error: '사진 목록을 불러올 수 없습니다.' });
     }
-    photos.sort((a, b) => b.modified - a.modified);
-    res.json(photos);
-  } catch (error) {
-    console.error('루트 사진 목록 조회 오류:', error);
-    res.status(500).json({ error: '사진 목록을 불러올 수 없습니다.' });
-  }
 });
 
 app.get('/api/photos/:folder', async (req, res) => {
-  try {
-    const folder = req.params.folder;
-    if (!validatePath(folder)) {
-        return res.status(400).json({ error: '잘못된 경로입니다.' });
-    }
-    const targetDir = path.join(PHOTO_DIR, folder);
-    
-    if (!await fs.pathExists(targetDir)) {
-      return res.status(404).json({ error: '폴더를 찾을 수 없습니다.' });
-    }
-    
-    const files = await fs.readdir(targetDir);
-    const photos = [];
-    
-    for (const file of files) {
-        const filePath = path.join(targetDir, file);
-        const stats = await fs.stat(filePath);
-        if (stats.isFile() && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file)) {
-            const extension = path.extname(file).toLowerCase().slice(1) || 'unknown';
-            photos.push({
-                name: file,
-                path: `${folder}/${file}`,
-                size: stats.size,
-                created: stats.birthtime,
-                modified: stats.mtime,
-                extension: extension // 안전한 확장자 처리
-            });
+    try {
+        const folder = req.params.folder;
+        if (!validatePath(folder)) {
+            return res.status(400).json({ error: '잘못된 경로입니다.' });
         }
+        const targetDir = path.join(PHOTO_DIR, folder);
+        const page = req.query.page || 1;
+        const limit = req.query.limit || 12;
+        const result = await getPaginatedPhotos(targetDir, page, limit, folder);
+
+        if (result.error) return res.status(result.status).json({ error: result.error });
+        res.json(result);
+    } catch (error) {
+        console.error(`'${req.params.folder}' 폴더 사진 목록 조회 오류:`, error);
+        res.status(500).json({ error: '사진 목록을 불러올 수 없습니다.' });
     }
-    photos.sort((a, b) => b.modified - a.modified);
-    res.json(photos);
-  } catch (error) {
-    console.error(`'${req.params.folder}' 폴더 사진 목록 조회 오류:`, error);
-    res.status(500).json({ error: '사진 목록을 불러올 수 없습니다.' });
-  }
 });
 
 
