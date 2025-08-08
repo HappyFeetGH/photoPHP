@@ -22,10 +22,10 @@ app.use(cors({
 
 // 미들웨어 설정
 app.use(express.static('public'));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ 
   extended: true, 
-  limit: '50mb',
+  limit: '100mb',
   parameterLimit: 50000 
 }));
 
@@ -34,8 +34,42 @@ app.use((req, res, next) => {
   next();
 });
 
+// 요청 타임아웃 증가
+app.use((req, res, next) => {
+  req.setTimeout(300000); // 5분
+  res.setTimeout(300000); // 5분
+  next();
+});
+
+// CORS 헤더 개선 (모바일 브라우저 호환성)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Max-Age', '86400');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 // 사진 파일 정적 서빙
 app.use('/photos', express.static(PHOTO_DIR));
+
+// 업로드 요청 로깅 미들웨어
+app.use('/api/upload', (req, res, next) => {
+    console.log('업로드 요청:', {
+        timestamp: new Date().toISOString(),
+        userAgent: req.get('User-Agent'),
+        contentLength: req.get('Content-Length'),
+        contentType: req.get('Content-Type'),
+        folder: req.body?.folder
+    });
+    next();
+});
+
 
 // 업로드 디렉토리 확인/생성
 fs.ensureDirSync(PHOTO_DIR);
@@ -74,13 +108,16 @@ const upload = multer({
   storage: storage,
   limits: { 
     fileSize: MAX_FILE_SIZE,
-    files: 10
+    files: 50,
+    fieldSize: 25 * 1024 * 1024
   },
   fileFilter: (req, file, cb) => {
     // 한국어 파일명 디코딩
     const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     const extension = path.extname(originalName).toLowerCase().slice(1);
     const mimetype = file.mimetype.startsWith('image/');
+
+    console.log(`파일 필터링: ${originalName} (MIME: ${file.mimetype})`);
     
     if (ALLOWED_EXTENSIONS.includes(extension) && mimetype) {
       return cb(null, true);
@@ -219,16 +256,24 @@ app.get('/api/photos/:folder', async (req, res) => {
 app.post('/api/upload', upload.array('photos', 10), (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: '업로드할 파일이 없습니다.' });
+      return res.status(400).json({ 
+        success: false,
+        error: '업로드할 파일이 없습니다.' 
+      });
     }
     
     const uploadedFiles = req.files.map(file => {
-      // 한국어 원본 파일명 디코딩
-      const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+      // 한국어 원본 파일명 처리 강화
+      let originalName;
+      try {
+        originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+      } catch (e) {
+        originalName = file.originalname; // fallback
+      }
       
       return {
-        original: originalName, // 디코딩된 원본 파일명
-        saved: file.filename,   // 서버에 저장된 파일명
+        original: originalName,
+        saved: file.filename,
         size: file.size,
         folder: req.body.folder || 'temp',
         path: path.relative(PHOTO_DIR, file.path)
@@ -238,17 +283,33 @@ app.post('/api/upload', upload.array('photos', 10), (req, res) => {
     console.log(`${uploadedFiles.length}개 파일 업로드 완료:`, 
       uploadedFiles.map(f => f.original));
     
+    // 성공 응답에 더 자세한 정보 포함
     res.json({
       success: true,
-      message: `${uploadedFiles.length}개 파일이 업로드되었습니다.`,
-      files: uploadedFiles
+      message: `${uploadedFiles.length}개 파일이 성공적으로 업로드되었습니다.`,
+      files: uploadedFiles,
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
     console.error('업로드 오류:', error);
-    res.status(500).json({ error: error.message || '업로드 중 오류가 발생했습니다.' });
+    
+    // 더 구체적인 오류 메시지
+    let errorMessage = '업로드 중 오류가 발생했습니다.';
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      errorMessage = '파일 크기가 너무 큽니다. 최대 50MB까지 허용됩니다.';
+    } else if (error.code === 'LIMIT_FILE_COUNT') {
+      errorMessage = '한 번에 최대 10개 파일까지 업로드할 수 있습니다.';
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
+
 
 
 // 사진 삭제

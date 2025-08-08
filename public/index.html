@@ -75,8 +75,16 @@
             cursor: pointer;
             position: relative;
             overflow: hidden;
+
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
         }
         
+        .upload-zone:active {
+            background: linear-gradient(135deg, rgba(40, 167, 69, 0.2) 0%, rgba(0, 124, 186, 0.2) 100%);
+        }
+
         .upload-zone:hover,
         .upload-zone.dragover {
             border-color: var(--secondary-color);
@@ -125,6 +133,9 @@
         .btn-primary {
             background: var(--primary-color);
             color: white;
+            padding: 15px 25px;
+            font-size: 1.1rem;
+            min-width: 200px;
         }
         
         .btn-primary:hover {
@@ -448,7 +459,8 @@
             }
             
             .upload-zone {
-                padding: 30px 15px;
+                padding: 40px 20px;
+                min-height: 150px;
             }
             
             .controls {
@@ -480,6 +492,16 @@
         @media (prefers-color-scheme: dark) {
             /* 다크모드 스타일은 나중에 추가 가능 */
         }
+        /* Samsung Internet 브라우저 특화 */
+        @supports (-webkit-appearance: none) {
+            .upload-zone input[type="file"] {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                opacity: 0;
+                cursor: pointer;
+            }
+        }
     </style>
 </head>
 <body>
@@ -508,19 +530,18 @@
             </div>
         </div>
 
-        <!-- 업로드 섹션 -->
-        <div class="upload-section">
-            <div class="upload-zone" id="uploadZone">
-                <input type="file" id="fileInput" multiple accept="image/*">
-                <div class="upload-zone-content">
-                    <h3>📤 사진 업로드</h3>
-                    <p>여기로 사진을 드래그하거나 클릭해서 선택하세요</p>
-                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                        📁 파일 선택
-                    </button>
-                </div>
+        <!-- 업로드 섹션 -->        
+        <div class="upload-zone" id="uploadZone">
+            <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+            <div class="upload-zone-content">
+                <h3>📤 사진 업로드</h3>
+                <p>여기로 사진을 드래그하거나 클릭해서 선택하세요</p>
+                <button id="uploadButton" class="btn btn-primary">
+                    📁 파일 선택
+                </button>
             </div>
         </div>
+
 
         <!-- 컨트롤 -->
         <div class="controls">
@@ -575,51 +596,93 @@
         function setupEventListeners() {
             const uploadZone = document.getElementById('uploadZone');
             const fileInput = document.getElementById('fileInput');
-            
-            // 드래그 앤 드롭
-            uploadZone.addEventListener('dragover', handleDragOver);
-            uploadZone.addEventListener('dragleave', handleDragLeave);
-            uploadZone.addEventListener('drop', handleDrop);
-            uploadZone.addEventListener('click', () => fileInput.click());
-            
-            // 파일 선택
-            fileInput.addEventListener('change', (e) => {
-                uploadFiles(e.target.files);
+            const uploadButton = document.getElementById('uploadButton'); // 버튼에 ID 추가
+
+            if (!uploadZone || !fileInput || !uploadButton) {
+                console.error('필수 UI 엘리먼트를 찾을 수 없습니다.');
+                return;
+            }
+
+            // 기존 리스너 제거 (중복 방지)
+            const newUploadZone = uploadZone.cloneNode(true);
+            uploadZone.parentNode.replaceChild(newUploadZone, uploadZone);
+
+            // 새 리스너 추가
+            newUploadZone.addEventListener('dragover', handleDragOver);
+            newUploadZone.addEventListener('dragleave', handleDragLeave);
+            newUploadZone.addEventListener('drop', handleDrop);
+
+            // 버튼에만 클릭 이벤트 할당
+            document.getElementById('uploadButton').addEventListener('click', () => {
+                fileInput.click();
             });
-            
-            // 모달 클릭 시 닫기
-            document.getElementById('imageModal').addEventListener('click', (e) => {
-                if (e.target === e.currentTarget) {
-                    closeModal();
-                }
-            });
-            
-            // ESC 키로 모달 닫기
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    closeModal();
-                }
-            });
+
+            // 파일 입력 변경 감지
+            fileInput.addEventListener('change', handleFileInputChange);
+
+            console.log('이벤트 리스너가 성공적으로 재설정되었습니다.');
         }
-        
-        // 드래그 오버 처리
+
+
+        // 이벤트 핸들러들 개선
+        function handleUploadZoneClick(e) {
+            e.preventDefault();
+            if (!isUploading) {
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) {
+                    fileInput.click();
+                }
+            }
+        }
+
+        function resetFileInput() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.value = '';
+                fileInput.removeAttribute('value');
+            }
+        }
+
+        // 파일 입력 변경 처리 함수
+        function handleFileInputChange(e) {
+            if (e.target.files && e.target.files.length > 0) {
+                const filesToUpload = Array.from(e.target.files);
+                
+                // input을 초기화하여 다음 선택을 준비
+                e.target.value = '';
+                
+                uploadFiles(filesToUpload);
+            }
+        }
+
+
         function handleDragOver(e) {
             e.preventDefault();
-            e.currentTarget.classList.add('dragover');
+            e.stopPropagation();
+            if (!isUploading) {
+                e.currentTarget.classList.add('dragover');
+            }
         }
-        
-        // 드래그 리브 처리
+
         function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
             e.currentTarget.classList.remove('dragover');
         }
-        
-        // 드롭 처리
+
         function handleDrop(e) {
             e.preventDefault();
+            e.stopPropagation();
             e.currentTarget.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            uploadFiles(files);
-        }
+            
+            if (!isUploading) {
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    uploadFiles(files);
+                }
+            }
+        }       
+        
         
         // 데이터 로드 (폴더 + 사진)
         async function loadData() {
@@ -831,20 +894,36 @@
             }
         }
         
+        let isUploading = false;
+
+
         // 파일 업로드 함수 (수정된 완전한 버전)
         async function uploadFiles(files) {
             try {
+                // 중복 업로드 방지
+                if (isUploading) {
+                    console.log('이미 업로드 중입니다.');
+                    return;
+                }
+                
                 if (!files || files.length === 0) {
                     console.log('업로드할 파일이 없습니다.');
                     return;
                 }
                 
-                const formData = new FormData();
-                const folder = document.getElementById('uploadFolder').value;
+                isUploading = true;
                 
-                // 파일 검증
-                const validFiles = Array.from(files).filter(file => {
-                    if (!file.type.startsWith('image/')) {
+                const formData = new FormData();
+                const folderSelect = document.getElementById('uploadFolder');
+                const folder = folderSelect ? folderSelect.value : 'temp'; // 안전하게 값 가져오기
+                
+                console.log(`업로드 대상 폴더: '${folder}'`);
+                
+                // 파일 검증 강화 (모바일 환경 고려)
+                const validFiles = Array.from(files).filter((file, index) => {
+                    console.log(`파일 ${index + 1}: ${file.name} (${file.type}, ${file.size} bytes)`);
+                    
+                    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) {
                         showToast(`${file.name}는 이미지 파일이 아닙니다.`, 'error');
                         return false;
                     }
@@ -852,9 +931,10 @@
                         showToast(`${file.name}은 파일 크기가 너무 큽니다. (최대 50MB)`, 'error');
                         return false;
                     }
-                    
-                    // 한국어 파일명 로그 (디버깅용)
-                    console.log(`업로드 파일: ${file.name} (${file.size} bytes)`);
+                    if (file.size === 0) {
+                        showToast(`${file.name}은 빈 파일입니다.`, 'error');
+                        return false;
+                    }
                     return true;
                 });
                 
@@ -863,9 +943,15 @@
                     return;
                 }
                 
+                // 대용량 업로드를 위한 배치 처리
+                if (validFiles.length > 5) {
+                    await uploadInBatches(validFiles, folder);
+                    return;
+                }
+                
                 formData.append('folder', folder);
-                validFiles.forEach(file => {
-                    formData.append('photos', file);
+                validFiles.forEach((file, index) => {
+                    formData.append('photos', file, file.name); // 명시적 파일명 설정
                 });
                 
                 // 업로드 중 UI 업데이트
@@ -880,35 +966,28 @@
                     <div class="upload-zone-content">
                         <h3>📤 업로드 중...</h3>
                         <p>${validFiles.length}개 파일을 업로드하고 있습니다</p>
-                        <div style="width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; margin-top: 15px;">
-                            <div style="width: 0%; height: 100%; background: var(--primary-color); border-radius: 2px; transition: width 0.3s;"></div>
+                        <div style="width: 100%; background: #e9ecef; height: 6px; border-radius: 3px; margin: 15px 0;">
+                            <div id="uploadProgress" style="width: 0%; height: 100%; background: var(--primary-color); border-radius: 3px; transition: width 0.3s;"></div>
                         </div>
+                        <p style="font-size: 0.9rem; color: #666;">업로드를 취소하지 마세요...</p>
                     </div>
                 `;
                 
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
+                // XMLHttpRequest로 진행률 추적 (fetch 대신)
+                const result = await uploadWithProgress(formData, validFiles.length);
                 
                 if (result.success) {
                     showToast(`✅ ${result.message}`, 'success');
                     console.log('업로드 성공:', result.files);
                     
-                    // 업로드된 폴더가 현재 선택된 폴더와 같으면 새로고침
-                    if (folder === currentFolder || (currentFolder === '' && folder === 'temp')) {
-                        await loadPhotos();
-                    }
-                    
-                    // 새 폴더가 생성되었을 수 있으므로 폴더 목록도 새로고침
-                    await loadFolders();
-                    updateStats();
+                    // 성공 후 새로고침
+                    setTimeout(async () => {
+                        if (folder === currentFolder || (currentFolder === '' && folder === 'temp')) {
+                            await loadPhotos();
+                        }
+                        await loadFolders();
+                        updateStats();
+                    }, 1000);
                 } else {
                     showToast(`❌ 업로드 실패: ${result.error}`, 'error');
                     console.error('업로드 실패:', result);
@@ -918,27 +997,134 @@
                 console.error('업로드 오류:', error);
                 showToast(`❌ 업로드 오류: ${error.message}`, 'error');
             } finally {
-                // 업로드 영역 복원
-                const uploadZone = document.getElementById('uploadZone');
-                if (uploadZone) {
-                    uploadZone.innerHTML = `
-                        <input type="file" id="fileInput" multiple accept="image/*">
-                        <div class="upload-zone-content">
-                            <h3>📤 사진 업로드</h3>
-                            <p>여기로 사진을 드래그하거나 클릭해서 선택하세요</p>
-                            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                                📁 파일 선택
-                            </button>
-                        </div>
-                    `;
-                    
-                    // 이벤트 리스너 재설정
-                    setupEventListeners();
-                }
+                isUploading = false;
+                
+                // 업로드 영역 복원 (지연 추가)
+                setTimeout(() => {
+                    restoreUploadZone();
+                }, 2000);
             }
         }
 
         
+        // XMLHttpRequest 기반 진행률 추적 업로드
+        function uploadWithProgress(formData, fileCount) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                
+                // 진행률 추적
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        const progressBar = document.getElementById('uploadProgress');
+                        if (progressBar) {
+                            progressBar.style.width = percentComplete + '%';
+                        }
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    try {
+                        const result = JSON.parse(xhr.responseText);
+                        resolve(result);
+                    } catch (e) {
+                        reject(new Error('서버 응답 파싱 실패'));
+                    }
+                });
+                
+                xhr.addEventListener('error', () => {
+                    reject(new Error('네트워크 오류'));
+                });
+                
+                xhr.addEventListener('timeout', () => {
+                    reject(new Error('업로드 시간 초과'));
+                });
+                
+                // 타임아웃 설정 (대용량 파일 고려)
+                xhr.timeout = 300000; // 5분
+                
+                xhr.open('POST', '/api/upload', true);
+                xhr.send(formData);
+            });
+        }
+
+        // 대용량 파일 배치 업로드
+        async function uploadInBatches(files, folder) {
+            const batchSize = 3; // 한 번에 3개씩
+            const batches = [];
+            
+            for (let i = 0; i < files.length; i += batchSize) {
+                batches.push(files.slice(i, i + batchSize));
+            }
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (let i = 0; i < batches.length; i++) {
+                const batch = batches[i];
+                console.log(`배치 ${i + 1}/${batches.length}: ${batch.length}개 파일 업로드 중...`);
+                
+                const formData = new FormData();
+                formData.append('folder', folder);
+                batch.forEach(file => {
+                    formData.append('photos', file, file.name);
+                });
+                
+                try {
+                    const result = await uploadWithProgress(formData, batch.length);
+                    if (result.success) {
+                        successCount += batch.length;
+                        showToast(`배치 ${i + 1} 완료 (${batch.length}개)`, 'success');
+                    } else {
+                        failCount += batch.length;
+                        showToast(`배치 ${i + 1} 실패: ${result.error}`, 'error');
+                    }
+                } catch (error) {
+                    failCount += batch.length;
+                    showToast(`배치 ${i + 1} 오류: ${error.message}`, 'error');
+                }
+                
+                // 배치 간 대기 시간 (서버 부하 방지)
+                if (i < batches.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+            
+            // 최종 결과 표시
+            if (successCount > 0) {
+                showToast(`✅ ${successCount}개 파일 업로드 완료`, 'success');
+                setTimeout(async () => {
+                    await loadPhotos();
+                    await loadFolders();
+                    updateStats();
+                }, 1000);
+            }
+            
+            if (failCount > 0) {
+                showToast(`❌ ${failCount}개 파일 업로드 실패`, 'error');
+            }
+        }
+
+        // 업로드 영역 복원 함수
+        function restoreUploadZone() {
+            const uploadZone = document.getElementById('uploadZone');
+            if (uploadZone) {
+                uploadZone.innerHTML = `
+                    <input type="file" id="fileInput" multiple accept="image/*">
+                    <div class="upload-zone-content">
+                        <h3>📤 사진 업로드</h3>
+                        <p>여기로 사진을 드래그하거나 클릭해서 선택하세요</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                            📁 파일 선택
+                        </button>
+                    </div>
+                `;
+                
+                // 이벤트 리스너 재설정 (중복 방지)
+                setupEventListeners();
+            }
+        }
+
         // 개별 사진 삭제
         async function deletePhoto(photoPath) {
         if (!confirm('정말로 이 사진을 삭제하시겠습니까?\n\n삭제된 파일은 복구할 수 없습니다.')) return;
@@ -1164,6 +1350,84 @@
                 updateDeleteButton();
             }
         };
+
+        // 디버깅 정보 수집
+        window.debugUpload = {
+            lastUploadAttempt: null,
+            uploadHistory: [],
+            browserInfo: {
+                userAgent: navigator.userAgent,
+                isMobile: isMobileDevice(),
+                isSamsung: isSamsungBrowser(),
+                support: {
+                    formData: typeof FormData !== 'undefined',
+                    fileAPI: typeof File !== 'undefined',
+                    dragDrop: 'ondrop' in window
+                }
+            },
+            
+            logUpload: function(files, result) {
+                const log = {
+                    timestamp: new Date().toISOString(),
+                    fileCount: files ? files.length : 0,
+                    files: files ? Array.from(files).map(f => ({ name: f.name, size: f.size, type: f.type })) : [],
+                    result: result,
+                    browser: this.browserInfo
+                };
+                this.uploadHistory.push(log);
+                this.lastUploadAttempt = log;
+                console.log('업로드 디버그 로그:', log);
+            }
+        };
+
+
+        // 모바일 기기 감지
+        function isMobileDevice() {
+            return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Samsung Internet 브라우저 감지
+        function isSamsungBrowser() {
+            return /SamsungBrowser/i.test(navigator.userAgent);
+        }
+
+        // 초기화 시 모바일 최적화 적용
+        document.addEventListener('DOMContentLoaded', () => {
+            if (isMobileDevice()) {
+                console.log('모바일 기기 감지됨');
+                
+                // 모바일 최적화 클래스 추가
+                document.body.classList.add('mobile-device');
+                
+                if (isSamsungBrowser()) {
+                    console.log('Samsung Internet 브라우저 감지됨');
+                    document.body.classList.add('samsung-browser');
+                }
+                
+                // 모바일용 이벤트 리스너 강화
+                setupMobileOptimizedListeners();
+            }
+            
+            loadData();
+            setupEventListeners();
+        });
+
+        // 모바일 최적화 이벤트 리스너
+        function setupMobileOptimizedListeners() {
+            const uploadZone = document.getElementById('uploadZone');
+            if (uploadZone && 'ontouchstart' in window) {
+                uploadZone.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    if (!isUploading) {
+                        const fileInput = document.getElementById('fileInput');
+                        if (fileInput) {
+                            fileInput.click();
+                        }
+                    }
+                }, { passive: false });
+            }
+        }
+
         
         // 앱 정보 로그
         console.log('📸 NAS Photo Gallery v1.0.0');
