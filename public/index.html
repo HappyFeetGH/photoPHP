@@ -596,31 +596,34 @@
         function setupEventListeners() {
             const uploadZone = document.getElementById('uploadZone');
             const fileInput = document.getElementById('fileInput');
-            const uploadButton = document.getElementById('uploadButton'); // 버튼에 ID 추가
+            const uploadButton = document.getElementById('uploadButton');
 
+            // 이 부분이 핵심: 엘리먼트가 모두 존재하는지 다시 한번 확인합니다.
             if (!uploadZone || !fileInput || !uploadButton) {
-                console.error('필수 UI 엘리먼트를 찾을 수 없습니다.');
+                // 이 로그가 보인다면, HTML 구조나 ID에 문제가 있는 것입니다.
+                console.error('필수 UI 엘리먼트 탐색 실패 (재시도 예정)');
+                // 잠시 후 다시 시도하여 타이밍 문제를 해결합니다.
+                setTimeout(setupEventListeners, 100);
                 return;
             }
 
-            // 기존 리스너 제거 (중복 방지)
-            const newUploadZone = uploadZone.cloneNode(true);
-            uploadZone.parentNode.replaceChild(newUploadZone, uploadZone);
+            console.log('이벤트 리스너를 성공적으로 설정합니다.');
 
-            // 새 리스너 추가
-            newUploadZone.addEventListener('dragover', handleDragOver);
-            newUploadZone.addEventListener('dragleave', handleDragLeave);
-            newUploadZone.addEventListener('drop', handleDrop);
+            // 기존 리스너를 확실히 제거하기 위해 새로운 변수에 할당합니다.
+            const newUploadZone = uploadZone; 
+            const newFileInput = fileInput;
+            const newUploadButton = uploadButton;
 
-            // 버튼에만 클릭 이벤트 할당
-            document.getElementById('uploadButton').addEventListener('click', () => {
-                fileInput.click();
-            });
+            // 드래그 앤 드롭 이벤트
+            newUploadZone.ondragover = handleDragOver;
+            newUploadZone.ondragleave = handleDragLeave;
+            newUploadZone.ondrop = handleDrop;
 
-            // 파일 입력 변경 감지
-            fileInput.addEventListener('change', handleFileInputChange);
+            // 버튼 클릭 이벤트 (파일 선택창 호출)
+            newUploadButton.onclick = () => newFileInput.click();
 
-            console.log('이벤트 리스너가 성공적으로 재설정되었습니다.');
+            // 파일 선택 완료 이벤트
+            newFileInput.onchange = handleFileInputChange;
         }
 
 
@@ -1110,17 +1113,17 @@
             const uploadZone = document.getElementById('uploadZone');
             if (uploadZone) {
                 uploadZone.innerHTML = `
-                    <input type="file" id="fileInput" multiple accept="image/*">
+                    <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
                     <div class="upload-zone-content">
                         <h3>📤 사진 업로드</h3>
                         <p>여기로 사진을 드래그하거나 클릭해서 선택하세요</p>
-                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        <button id="uploadButton" class="btn btn-primary">
                             📁 파일 선택
                         </button>
                     </div>
                 `;
                 
-                // 이벤트 리스너 재설정 (중복 방지)
+                // HTML이 완전히 새로 그려진 후에 이벤트 리스너를 설정합니다.
                 setupEventListeners();
             }
         }
